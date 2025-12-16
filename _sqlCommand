@@ -1,8 +1,8 @@
--- Coba deteksi document root dari MySQL
+**CEK DOCUMENT ROOT + LUAR DOCUMENT ROOT**
+
 SELECT @@datadir;
 SELECT @@basedir;
 
--- Query untuk cek apakah ada akses ke common paths
 SELECT 
     '/var/www/html' AS path,
     IF(@@secure_file_priv = '' OR @@secure_file_priv LIKE '%/var/www/html%', 'Mungkin Bisa', 'Tidak Bisa') AS export_possible
@@ -20,6 +20,8 @@ SELECT
     IF(@@secure_file_priv = '' OR @@secure_file_priv LIKE '%/var/tmp%', 'Mungkin Bisa', 'Tidak Bisa');
 
 --------------------------------------------------------
+
+**CEK PRIVILEGE**
 
 SELECT * FROM (
     -- Bagian 1: Basic Info
@@ -49,6 +51,8 @@ ORDER BY section, variable;
 
 --------------------------------------------------------
 
+CEK IOF
+
 SELECT 
     CONCAT(
         'REKOMENDASI UNTUK ANDA:',
@@ -75,3 +79,34 @@ SELECT CONCAT('   SELECT @@datadir INTO OUTFILE ''',
     ''';');
 
 --------------------------------------------------------
+
+CEK PRIV + IOF
+
+SELECT 
+    'CURRENT SETTING' AS info,
+    @@secure_file_priv AS value,
+    CASE 
+        WHEN @@secure_file_priv IS NULL THEN '❌ TIDAK BISA INTO OUTFILE sama sekali'
+        WHEN @@secure_file_priv = '' THEN '✅ BISA ke semua direktori'
+        ELSE CONCAT('✅ BISA ke: ', @@secure_file_priv)
+    END AS status
+UNION ALL
+SELECT 
+    'YOUR PRIVILEGES',
+    IF(FILE_PRIV = 'Y', 'HAS FILE PRIV', 'NO FILE PRIV'),
+    IF(FILE_PRIV = 'Y', '✅ Bisa export', '❌ Tidak bisa export')
+FROM mysql.user 
+WHERE User = SUBSTRING_INDEX(CURRENT_USER(), '@', 1)
+    AND Host = SUBSTRING_INDEX(CURRENT_USER(), '@', -1)
+UNION ALL
+SELECT 
+    'RECOMMENDATION',
+    CASE 
+        WHEN @@secure_file_priv IS NULL THEN 'Minta admin ubah config'
+        WHEN @@secure_file_priv = '' THEN 'Gunakan /tmp/ atau /home/'
+        ELSE @@secure_file_priv
+    END,
+    CASE 
+        WHEN @@secure_file_priv IS NULL THEN 'Butuh akses server'
+        ELSE 'Langsung export ke path tersebut'
+    END;
