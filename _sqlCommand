@@ -1,0 +1,77 @@
+-- Coba deteksi document root dari MySQL
+SELECT @@datadir;
+SELECT @@basedir;
+
+-- Query untuk cek apakah ada akses ke common paths
+SELECT 
+    '/var/www/html' AS path,
+    IF(@@secure_file_priv = '' OR @@secure_file_priv LIKE '%/var/www/html%', 'Mungkin Bisa', 'Tidak Bisa') AS export_possible
+UNION ALL
+SELECT 
+    '/home/user' AS path,
+    IF(@@secure_file_priv = '' OR @@secure_file_priv LIKE '%/home/user%', 'Mungkin Bisa', 'Tidak Bisa')
+UNION ALL
+SELECT 
+    '/tmp' AS path,
+    IF(@@secure_file_priv = '' OR @@secure_file_priv LIKE '%/tmp%', 'Mungkin Bisa', 'Tidak Bisa')
+UNION ALL
+SELECT 
+    '/var/tmp' AS path,
+    IF(@@secure_file_priv = '' OR @@secure_file_priv LIKE '%/var/tmp%', 'Mungkin Bisa', 'Tidak Bisa');
+
+--------------------------------------------------------
+
+SELECT * FROM (
+    -- Bagian 1: Basic Info
+    SELECT 'basic_info' AS section, 'datadir' AS variable, @@datadir AS value
+    UNION ALL SELECT 'basic_info', 'basedir', @@basedir
+    UNION ALL SELECT 'basic_info', 'secure_file_priv', @@secure_file_priv
+    UNION ALL SELECT 'basic_info', 'version', VERSION()
+    
+    -- Bagian 2: Directory Info
+    UNION ALL SELECT 'directories', 'character_sets_dir', @@character_sets_dir
+    UNION ALL SELECT 'directories', 'plugin_dir', @@plugin_dir
+    UNION ALL SELECT 'directories', 'lc_messages_dir', @@lc_messages_dir
+    
+    -- Bagian 3: User Info
+    UNION ALL SELECT 'user_info', 'current_user', CURRENT_USER()
+    UNION ALL SELECT 'user_info', 'database', DATABASE()
+    UNION ALL SELECT 'user_info', 'hostname', @@hostname
+    
+    -- Bagian 4: Status
+    UNION ALL SELECT 'status', 'can_export', 
+           CASE 
+               WHEN @@secure_file_priv IS NULL THEN 'NO'
+               ELSE 'YES'
+           END
+) AS all_info
+ORDER BY section, variable;
+
+--------------------------------------------------------
+
+SELECT 
+    CONCAT(
+        'REKOMENDASI UNTUK ANDA:',
+        '\n\n1. Setting secure_file_priv: ', 
+        IFNULL(@@secure_file_priv, 'NULL'),
+        '\n\n2. Lokasi yang bisa dicoba:'
+    ) AS info
+UNION ALL
+SELECT CONCAT('   - ', 
+    CASE 
+        WHEN @@secure_file_priv IS NULL THEN 'PERLU UBAH my.cnf DULU'
+        WHEN @@secure_file_priv = '' THEN '/tmp/export.php'
+        ELSE CONCAT(@@secure_file_priv, '/export.php')
+    END)
+UNION ALL
+SELECT '\n3. Contoh command:'
+UNION ALL
+SELECT CONCAT('   SELECT @@datadir INTO OUTFILE ''',
+    CASE 
+        WHEN @@secure_file_priv IS NULL THEN '/tmp/ (setelah konfigurasi)'
+        WHEN @@secure_file_priv = '' THEN '/tmp/datadir.php'
+        ELSE CONCAT(@@secure_file_priv, '/datadir.php')
+    END,
+    ''';');
+
+--------------------------------------------------------
